@@ -5,3 +5,20 @@ authors = ["traxys <quentin@familleboyer.net>"]
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.86"
+axum = { version = "0.7.5", features = ["json"] }
+axum-extra = { version = "0.9.3", features = ["typed-header"] }
+bytes = "1.6.0"
+envious = "0.2.2"
+http-body-util = "0.1.2"
+ruma = { version = "0.10.1", features = [
+	"appservice-api",
+	"client-api-c",
+	"client-ext-client-api",
+	"client-reqwest-rustls-native-roots",
+] }
+serde = { version = "1.0.204", features = ["derive"] }
+serde_yml = "0.0.10"
+tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
