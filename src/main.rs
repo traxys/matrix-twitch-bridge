@@ -1,13 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Router};
-use ruma::api::{
-    appservice::ping::send_ping,
-    client::{
-        appservice::request_ping,
-        error::{ErrorBody, ErrorKind},
-    },
-};
+use axum::{response::IntoResponse, routing::post, Router};
+use ruma::api::{appservice::ping::send_ping, client::appservice::request_ping};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::EnvFilter;
 
@@ -34,24 +28,10 @@ impl Config {
     }
 }
 
-async fn ping(
-    state: State<Arc<BridgeState>>,
-    request: RumaRequest<send_ping::v1::Request>,
-) -> impl IntoResponse {
-    tracing::info!("Got ping: {request:?}");
+async fn ping(request: RumaRequest<send_ping::v1::Request>) -> impl IntoResponse {
+    tracing::trace!("Got ping: {request:?}");
 
-    if request.hs_token != state.hs_token {
-        return RumaResponse(ruma::api::client::Error::new(
-            StatusCode::FORBIDDEN,
-            ErrorBody::Standard {
-                kind: ErrorKind::forbidden(),
-                message: "hs_token mismatch".into(),
-            },
-        ))
-        .into_response();
-    } else {
-        RumaResponse(send_ping::v1::Response::new()).into_response()
-    }
+    RumaResponse(send_ping::v1::Response::new()).into_response()
 }
 
 struct BridgeState {

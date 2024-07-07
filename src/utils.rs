@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     async_trait,
     extract::{FromRequest, RawPathParams, Request},
@@ -12,25 +14,29 @@ use axum_extra::{
 use bytes::{Bytes, BytesMut};
 use http_body_util::BodyExt;
 use ruma::api::{
-    client::{self, error::ErrorBody},
+    client::{
+        self,
+        error::{ErrorBody, ErrorKind},
+    },
     IncomingRequest, OutgoingResponse,
 };
 
+use crate::BridgeState;
+
 #[derive(Debug)]
-pub struct RumaRequest<T> {
-    pub request: T,
-    pub hs_token: String,
-}
+pub struct RumaRequest<T>(pub T);
 
 #[async_trait]
-impl<T, S> FromRequest<S> for RumaRequest<T>
+impl<T> FromRequest<Arc<BridgeState>> for RumaRequest<T>
 where
     T: IncomingRequest,
-    S: Send + Sync,
 {
     type Rejection = axum::response::Response;
 
-    async fn from_request(mut req: Request, _: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request(
+        mut req: Request,
+        state: &Arc<BridgeState>,
+    ) -> Result<Self, Self::Rejection> {
         let hs_token = match req
             .extract_parts::<TypedHeader<Authorization<Bearer>>>()
             .await
@@ -48,6 +54,17 @@ where
                 .into_response());
             }
         };
+
+        if hs_token != state.hs_token {
+            return Err(RumaResponse(ruma::api::client::Error::new(
+                StatusCode::FORBIDDEN,
+                ErrorBody::Standard {
+                    kind: ErrorKind::forbidden(),
+                    message: "hs_token mismatch".into(),
+                },
+            ))
+            .into_response());
+        }
 
         // TODO: use the correct matrix error response
         let path_args = req
@@ -67,7 +84,7 @@ where
             .to_bytes();
 
         match T::try_from_http_request(Request::from_parts(head, body), &path_args) {
-            Ok(request) => Ok(RumaRequest { request, hs_token }),
+            Ok(request) => Ok(RumaRequest(request)),
             Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string()).into_response()),
         }
     }
