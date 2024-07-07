@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use axum::{response::IntoResponse, routing::post, Router};
 use ruma::api::{appservice::ping::send_ping, client::appservice::request_ping};
@@ -69,12 +69,17 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8009").await?;
 
     tokio::spawn(async move {
-        if let Err(e) = client
-            .send_request(request_ping::v1::Request::new("twitch-bridge".into()))
-            .await
-        {
-            tracing::error!("ping failed: {e:#?}");
-            std::process::exit(1);
+        loop {
+            if let Err(e) = client
+                .send_request(request_ping::v1::Request::new("twitch-bridge".into()))
+                .await
+            {
+                tracing::error!("ping failed: {e:#?}");
+                tokio::time::sleep(Duration::from_secs(3)).await;
+                continue;
+            }
+
+            break;
         }
     });
 
